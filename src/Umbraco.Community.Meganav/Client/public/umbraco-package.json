@@ -1,0 +1,15 @@
+{
+  "$schema": "../node_modules/@umbraco-cms/backoffice/dist-cms/umbraco-package-schema.json",
+  "id": "Umbraco.Community.Meganav",
+  "name": "Meganav",
+  "version": "5.0.0",
+  "allowTelemetry": true,
+  "extensions": [
+    {
+      "type": "bundle",
+      "alias": "Meganav.Bundle",
+      "name": "Meganav Bundle",
+      "js": "/App_Plugins/Meganav/meganav.js"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+node_modules/
+wwwroot/App_Plugins/
+bin/
+obj/
+CLAUDE.local.md

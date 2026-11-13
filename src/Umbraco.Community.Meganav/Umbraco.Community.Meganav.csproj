@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <!-- Lowest target supported by Umbraco 14, so the package can be referenced by v14 - v19 sites -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Umbraco.Community.Meganav</PackageId>
+    <Product>Umbraco.Community.Meganav</Product>
+    <Title>Meganav</Title>
+    <Description>A flexible, draggable link picker for constructing site navigation menus, big or small, in Umbraco.</Description>
+    <PackageTags>umbraco;umbraco-marketplace;navigation;menu;links</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ClientAssetsInputs Include="Client\src\**;Client\public\**" />
+    <!-- Don't include the client source when packing -->
+    <Content Remove="Client\**" />
+    <None Include="Client\public\umbraco-package.json" Pack="false" />
+  </ItemGroup>
+
+  <!-- Restore and build client files -->
+  <Target Name="RestoreClient" Inputs="Client\package.json;Client\package-lock.json" Outputs="Client\node_modules\.package-lock.json">
+    <Message Importance="high" Text="Restoring Meganav client NPM packages..." />
+    <Exec Command="npm i" WorkingDirectory="Client" />
+  </Target>
+
+  <Target Name="BuildClient" BeforeTargets="AssignTargetPaths" DependsOnTargets="RestoreClient" Inputs="@(ClientAssetsInputs)" Outputs="$(IntermediateOutputPath)client.complete.txt">
+    <Message Importance="high" Text="Building Meganav client..." />
+    <Exec Command="npm run build" WorkingDirectory="Client" />
+    <ItemGroup>
+      <_ClientAssetsBuildOutput Include="wwwroot\App_Plugins\**" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)client.complete.txt" Lines="@(_ClientAssetsBuildOutput)" Overwrite="true" />
+  </Target>
+</Project>

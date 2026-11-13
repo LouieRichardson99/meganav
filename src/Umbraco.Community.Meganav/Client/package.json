@@ -1,0 +1,20 @@
+{
+  "name": "umbraco-community-meganav",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "watch": "tsc && vite build --watch",
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@umbraco-cms/backoffice": "14.3.4",
+    "eslint": "^10.14.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.2",
+    "vite": "^7.1.9"
+  }
+}
