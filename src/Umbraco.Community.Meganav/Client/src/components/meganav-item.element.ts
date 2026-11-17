@@ -4,7 +4,6 @@ import {
   MeganavEditItemEvent,
   MeganavEditLinkEvent,
   MeganavRemoveItemEvent,
-  MeganavToggleCollapseEvent,
   MeganavToggleVisibilityEvent,
 } from "../events.js";
 import {
@@ -22,8 +21,6 @@ export class MeganavItemElement extends UmbLitElement {
   @property({ attribute: false }) item?: MeganavItem;
 
   @property({ type: Boolean, reflect: true }) readonly = false;
-
-  @property({ type: Boolean }) collapsed = false;
 
   @property({ attribute: false }) entity?: MeganavEntityInfo;
 
@@ -53,33 +50,16 @@ export class MeganavItemElement extends UmbLitElement {
     }
   }
 
-  #toggleCollapse() {
-    if (this.item) {
-      this.dispatchEvent(new MeganavToggleCollapseEvent(this.item.id));
-    }
-  }
-
   override render() {
     if (!this.item) return null;
 
     return html`
-      ${
-        this.readonly
-          ? null
-          : html`<uui-button-inline-create
-              label=${this.localize.term("meganav_addItem")}
-              @click=${() => this.dispatchEvent(new CustomEvent("add-before"))}
-            ></uui-button-inline-create>`
-      }
-
       <meganav-preview
         .item=${this.item}
-        .collapsed=${this.collapsed}
         .entity=${this.entity}
         .itemType=${this.itemType}
         ?readonly=${this.readonly}
         ?item-hidden=${this.item.visible === false}
-        @toggle=${this.#toggleCollapse}
         @open=${this.#editLink}
       >
         ${
@@ -94,10 +74,6 @@ export class MeganavItemElement extends UmbLitElement {
               ></meganav-actions>`
         }
       </meganav-preview>
-
-      <div class="children" ?hidden=${this.collapsed}>
-        <slot name="children"></slot>
-      </div>
     `;
   }
 
@@ -105,36 +81,6 @@ export class MeganavItemElement extends UmbLitElement {
     css`
       :host {
         display: block;
-        position: relative;
-      }
-
-      :host(:not([readonly])) meganav-preview {
-        cursor: grab;
-      }
-
-      /* The sorter marks the element being dragged with this attribute. */
-      :host([drag-placeholder]) {
-        opacity: 0.4;
-      }
-
-      :host([drag-placeholder]) meganav-preview {
-        outline: 1px dashed var(--uui-color-border-emphasis);
-      }
-
-      uui-button-inline-create {
-        position: absolute;
-        top: calc(var(--uui-size-space-2) / -2);
-        left: 0;
-        right: 0;
-        z-index: 1;
-      }
-
-      .children {
-        padding-left: var(--uui-size-layout-2);
-      }
-
-      .children[hidden] {
-        display: none;
       }
     `,
   ];

@@ -15,7 +15,8 @@ export abstract class MeganavPropertyActionBase extends UmbActionBase<unknown> {
   async execute() {
     const context = await this.getContext(UMB_PROPERTY_CONTEXT);
     const editor = context?.getEditor() as
-      MeganavPropertyEditorUiElement | undefined;
+      | MeganavPropertyEditorUiElement
+      | undefined;
 
     if (!editor) return;
 

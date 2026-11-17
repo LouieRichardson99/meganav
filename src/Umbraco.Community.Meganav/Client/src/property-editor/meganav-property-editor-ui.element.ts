@@ -1,17 +1,20 @@
 import type { MeganavItem, MeganavItemType, MeganavValue } from "../types.js";
 import {
-  MeganavAddItemEvent,
-  MeganavChildrenChangeEvent,
   MeganavEditItemEvent,
   MeganavEditLinkEvent,
   MeganavRemoveItemEvent,
-  MeganavToggleCollapseEvent,
   MeganavToggleVisibilityEvent,
 } from "../events.js";
+import {
+  MeganavTreeChangeEvent,
+  MeganavTreeInsertEvent,
+} from "../tree/events.js";
+import type { MeganavTreeElement } from "../tree/tree.element.js";
 import { pickLink, toUdi } from "../utils/link.js";
 import {
   findItemType,
   getAllowedTypes,
+  isAllowedIn,
   normalizeItemTypes,
 } from "../utils/item-types.js";
 import { MEGANAV_ITEM_MODAL } from "../modals/item/item-modal.token.js";
@@ -22,20 +25,17 @@ import {
 import {
   findItem,
   findParent,
-  getParentIds,
-  getUdis,
   insertItem,
-  normalize,
   removeItem,
-  setChildren,
-  setVisible,
   updateItem,
-} from "../utils/tree.js";
+} from "../tree/tree.js";
+import { getUdis, normalize, setVisible } from "../utils/items.js";
 import {
   css,
   customElement,
   html,
   property,
+  query,
   state,
 } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
@@ -52,13 +52,12 @@ import {
 import { UmbChangeEvent } from "@umbraco-cms/backoffice/event";
 import { UMB_PROPERTY_DATASET_CONTEXT } from "@umbraco-cms/backoffice/property";
 import type { UmbPropertyEditorConfigCollection } from "@umbraco-cms/backoffice/property-editor";
-import "../components/meganav-items.element.js";
+import "../components/meganav-item.element.js";
+import "../tree/tree.element.js";
 
 // Implements `UmbPropertyEditorUiElement`, which moved package between v14 and v16, so it's not imported.
 @customElement("meganav-property-editor-ui")
 export class MeganavPropertyEditorUiElement extends UmbLitElement {
-  readonly #editorId = UmbId.new();
-
   readonly #entityResolver = new MeganavEntityResolver(this);
 
   readonly #requestedUdis = new Set<string>();
@@ -89,8 +88,6 @@ export class MeganavPropertyEditorUiElement extends UmbLitElement {
 
   @state() private _items: Array<MeganavItem> = [];
 
-  @state() private _collapsedIds: ReadonlySet<string> = new Set();
-
   @state() private _entities: ReadonlyMap<string, MeganavEntityInfo> =
     new Map();
 
@@ -104,11 +101,13 @@ export class MeganavPropertyEditorUiElement extends UmbLitElement {
 
   private _hideAnchor = false;
 
+  @query("meganav-tree") private _tree?: MeganavTreeElement<MeganavItem>;
+
   constructor() {
     super();
 
-    this.addEventListener(MeganavAddItemEvent.TYPE, (e) => {
-      const { parentId, index } = e as MeganavAddItemEvent;
+    this.addEventListener(MeganavTreeInsertEvent.TYPE, (e) => {
+      const { parentId, index } = e as MeganavTreeInsertEvent;
 
       this.#addItem(parentId, index);
     });
@@ -125,25 +124,9 @@ export class MeganavPropertyEditorUiElement extends UmbLitElement {
       this.#removeItem((e as MeganavRemoveItemEvent).id),
     );
 
-    this.addEventListener(MeganavToggleCollapseEvent.TYPE, (e) =>
-      this.#toggleCollapse((e as MeganavToggleCollapseEvent).id),
-    );
-
     this.addEventListener(MeganavToggleVisibilityEvent.TYPE, (e) =>
       this.#toggleVisibility((e as MeganavToggleVisibilityEvent).id),
     );
-
-    this.addEventListener(MeganavChildrenChangeEvent.TYPE, (e) => {
-      const { parentId, children } = e as MeganavChildrenChangeEvent;
-      // A sorter's model can hold stale copies of its items when an item moves between lists
-      // (it hasn't re-rendered since the other list changed), so only take the order from it
-      // and use the current version of each item from the tree.
-      const current = children.map(
-        (child) => findItem(this._items, child.id) ?? child,
-      );
-
-      this.#setValue(setChildren(this._items, parentId, current));
-    });
   }
 
   override willUpdate(changed: Map<PropertyKey, unknown>) {
@@ -161,11 +144,11 @@ export class MeganavPropertyEditorUiElement extends UmbLitElement {
   }
 
   public expandAll() {
-    this._collapsedIds = new Set();
+    this._tree?.expandAll();
   }
 
   public collapseAll() {
-    this._collapsedIds = new Set(getParentIds(this._items));
+    this._tree?.collapseAll();
   }
 
   /** Appends an item for each child of the document being edited. */
@@ -189,14 +172,14 @@ export class MeganavPropertyEditorUiElement extends UmbLitElement {
     const remaining = this._maxItems
       ? this._maxItems - this._items.length
       : data.items.length;
-    const items = data.items
-      .slice(0, Math.max(remaining, 0))
-      .map((child): MeganavItem => ({
+    const items = data.items.slice(0, Math.max(remaining, 0)).map(
+      (child): MeganavItem => ({
         id: UmbId.new(),
         udi: toUdi("document", child.unique),
         settings: {},
         children: [],
-      }));
+      }),
+    );
 
     this.#setValue([...this._items, ...items]);
   }
@@ -224,16 +207,6 @@ export class MeganavPropertyEditorUiElement extends UmbLitElement {
   #setValue(items: Array<MeganavItem>) {
     this._items = items;
     this.dispatchEvent(new UmbChangeEvent());
-  }
-
-  #toggleCollapse(id: string) {
-    const next = new Set(this._collapsedIds);
-
-    if (!next.delete(id)) {
-      next.add(id);
-    }
-
-    this._collapsedIds = next;
   }
 
   async #addItem(parentId: string | null, index: number) {
@@ -418,33 +391,43 @@ export class MeganavPropertyEditorUiElement extends UmbLitElement {
     };
   }
 
+  #renderItem(item: MeganavItem) {
+    return html`<meganav-item
+      .item=${item}
+      .entity=${item.udi ? this._entities.get(item.udi) : undefined}
+      .itemType=${this._itemTypes.length > 1
+        ? findItemType(this._itemTypes, item)
+        : undefined}
+      ?readonly=${this.readonly}
+    ></meganav-item>`;
+  }
+
   override render() {
     const canAdd =
       !this.readonly &&
       (!this._maxItems || this._items.length < this._maxItems);
 
+    // `renderItem` is recreated each render so the tree re-renders its rows when the entities or item types change.
     return html`
-      <meganav-items
+      <meganav-tree
         .items=${this._items}
-        .editorId=${this.#editorId}
-        .depth=${1}
         .maxDepth=${this._maxDepth}
-        .collapsedIds=${this._collapsedIds}
-        .entities=${this._entities}
-        .itemTypes=${this._itemTypes}
+        .renderItem=${(item: MeganavItem) => this.#renderItem(item)}
+        .canDrop=${(item: MeganavItem, parent: MeganavItem | null) =>
+          isAllowedIn(this._itemTypes, item, parent)}
         ?readonly=${this.readonly}
-      ></meganav-items>
+        @meganav-tree-change=${(e: MeganavTreeChangeEvent<MeganavItem>) =>
+          this.#setValue(e.items)}
+      ></meganav-tree>
 
-      ${
-        canAdd
-          ? html`<uui-button
-              id="add"
-              look="placeholder"
-              label=${this.localize.term("general_add")}
-              @click=${() => this.#addItem(null, -1)}
-            ></uui-button>`
-          : null
-      }
+      ${canAdd
+        ? html`<uui-button
+            id="add"
+            look="placeholder"
+            label=${this.localize.term("general_add")}
+            @click=${() => this.#addItem(null, -1)}
+          ></uui-button>`
+        : null}
     `;
   }
 

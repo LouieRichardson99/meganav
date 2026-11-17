@@ -13,8 +13,6 @@ import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 export class MeganavPreviewElement extends UmbLitElement {
   @property({ attribute: false }) item?: MeganavItem;
 
-  @property({ type: Boolean }) collapsed = false;
-
   @property({ attribute: false }) entity?: MeganavEntityInfo;
 
   /** Only set when there's more than one item type, so the type's icon tells them apart. */
@@ -53,24 +51,9 @@ export class MeganavPreviewElement extends UmbLitElement {
   override render() {
     if (!this.item) return null;
 
-    const hasChildren = this.item.children.length > 0;
     const unavailable = !!this.entity && this.entity.state !== "published";
 
     return html`
-      <div class="toggle">
-        ${
-          hasChildren
-            ? html`<uui-button
-                compact
-                label=${this.localize.term("meganav_toggleCollapse")}
-                @click=${() => this.dispatchEvent(new CustomEvent("toggle"))}
-              >
-                <uui-symbol-expand .open=${!this.collapsed}></uui-symbol-expand>
-              </uui-button>`
-            : null
-        }
-      </div>
-
       <uui-ref-node
         standalone
         class=${unavailable ? "unavailable" : ""}
@@ -109,25 +92,12 @@ export class MeganavPreviewElement extends UmbLitElement {
   static override styles = [
     css`
       :host {
-        border-radius: var(--uui-border-radius);
-        display: flex;
-        align-items: center;
+        display: block;
       }
 
       :host([item-hidden]) uui-ref-node,
       uui-ref-node.unavailable {
         opacity: 0.5;
-      }
-
-      .toggle {
-        flex: 0 0 var(--uui-size-layout-2);
-        display: flex;
-        justify-content: center;
-      }
-
-      uui-ref-node {
-        flex: 1 1 auto;
-        min-width: 0;
       }
     `,
   ];

@@ -157,9 +157,9 @@ export class MeganavItemTypeModalElement extends UmbModalBaseElement<
               slot="editor"
               max="1"
               .elementTypesOnly=${true}
-              .selection=${
-                this.value.settingsType ? [this.value.settingsType] : []
-              }
+              .selection=${this.value.settingsType
+                ? [this.value.settingsType]
+                : []}
               @change=${(e: Event) =>
                 this.updateValue({
                   settingsType:
@@ -200,29 +200,25 @@ export class MeganavItemTypeModalElement extends UmbModalBaseElement<
                   this.#setChooseTypes(!(e.target as HTMLInputElement).checked)}
               ></uui-toggle>
 
-              ${
-                this._chooseTypes
-                  ? repeat(
-                      this.#getItemTypes(),
-                      (itemType) => itemType.id,
-                      (itemType) =>
-                        html`<uui-checkbox
-                          label=${
-                            itemType.name ||
-                            this.localize.term("meganav_untitled")
-                          }
-                          .checked=${this.value.allowedTypes.includes(
+              ${this._chooseTypes
+                ? repeat(
+                    this.#getItemTypes(),
+                    (itemType) => itemType.id,
+                    (itemType) =>
+                      html`<uui-checkbox
+                        label=${itemType.name ||
+                        this.localize.term("meganav_untitled")}
+                        .checked=${this.value.allowedTypes.includes(
+                          itemType.id,
+                        )}
+                        @change=${(e: Event) =>
+                          this.#toggleAllowedType(
                             itemType.id,
+                            (e.target as HTMLInputElement).checked,
                           )}
-                          @change=${(e: Event) =>
-                            this.#toggleAllowedType(
-                              itemType.id,
-                              (e.target as HTMLInputElement).checked,
-                            )}
-                        ></uui-checkbox>`,
-                    )
-                  : null
-              }
+                      ></uui-checkbox>`,
+                  )
+                : null}
             </div>
           </umb-property-layout>
         </uui-box>
