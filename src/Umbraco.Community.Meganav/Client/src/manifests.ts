@@ -8,7 +8,7 @@ const propertyEditorUi = {
     label: "Meganav",
     icon: "icon-sitemap",
     group: "pickers",
-    propertyEditorSchemaAlias: "Umbraco.Plain.Json",
+    propertyEditorSchemaAlias: "Our.Umbraco.Meganav",
     settings: {
       properties: [
         {

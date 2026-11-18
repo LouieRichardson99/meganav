@@ -75,6 +75,23 @@ Client/src
 override of the linked page's name. `settings` holds the raw property editor values of the item type's
 settings element type, keyed by property alias.
 
+## Using it in views
+
+The property's value is an `IEnumerable<MeganavItem>`:
+
+```cshtml
+@foreach (var item in Model.MainNavigation)
+{
+    <a href="@item.Url" target="@item.Target">@item.Name</a>
+
+    @* item.Level (1 at the top), item.ItemType?.Alias, item.Content (the linked page), item.Settings (the settings element type's model) and item.Children *@
+}
+```
+
+Hidden items, links to unpublished, trashed or deleted pages, and items whose type isn't allowed where they are
+any more, are left out. The Delivery API returns the same tree, with `name`, `link`, `itemType` (the alias),
+`settings` and `children`.
+
 ## Data type settings
 
 | Alias | Description |
